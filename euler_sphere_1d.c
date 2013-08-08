@@ -111,7 +111,7 @@ void riemansolverX(double *F_mid, double *U, double *max) {
 
   *max=0;
 
-/**********reflective in r=0 and outflow in rmax ***************/
+/**********reflective in r=0 and outflow in rmax **************/
   for (i=0;i<X+4;i++) {
     for (l=0;l<3;l++) {
       N = Sx*i+l;
