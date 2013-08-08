@@ -9,10 +9,10 @@
 #define GAMMA 1.4
 #define X 10000
 #define XMIN 0.0
-#define XMAX 1.0
+#define XMAX 100.0
 #define THETA 2.0
 #define tmax 1.0
-
+#define R 0.1
 
 void Grid(double *gridX) {
   *gridX = (XMAX - XMIN) / (X - 1);
@@ -85,7 +85,7 @@ void sphere(double *physical) {
       physical[N+2] = 10.0;
     }
     else {
-      physical[N+0] = 0.1/(x*x);
+      physical[N+0] = (R*R)/(x*x);
       physical[N+1] = 0.0;
       physical[N+2] = 0.1;
     }
@@ -111,39 +111,28 @@ void riemansolverX(double *F_mid, double *U, double *max) {
 
   *max=0;
 
-/**********periodic***************/
+/**********reflective in r=0 and outflow in rmax ***************/
   for (i=0;i<X+4;i++) {
     for (l=0;l<3;l++) {
       N = Sx*i+l;
-      if (i<2) {
-      phys_temp[N] = phys[Sx*(i+X-2)+l];
+      if (i==0) {
+        if (l==1)  phys_temp[N] = -phys[Sx*(1)+l];
+        else          phys_temp[N] = phys[Sx*(0)+l];
+      }
+      else if (i==1){ 
+ if (l==1) phys_temp[N] = -phys[Sx*(0)+l]
+	else      phys_temp[N] = phys[Sx*(0)+l];
+
       }
       else if (i>X+1) {
-        phys_temp[N] = phys[Sx*(i-X-2)+l];
+        phys_temp[N] = phys[Sx*(X-1)+l];;
       }
       else phys_temp[N] = phys[N-2*Sx];
     }
   }
 /************************************/
 
-/***************outflow*****************
-  for (i=0;i<X+4;i++) {
-    for (j=0;j<Y;j++) {
-      for (k=0;k<Z;k++) {
-        for (l=0;l<5;l++) {
-          N = Sx*i+Sy*j+Sz*k+l;
-          if      (i<2) {
-            phys_temp[N] = phys[Sx*(0)+Sy*j+Sz*k+l];
-          }
-          else if (i>X+1) {
-            phys_temp[N] = phys[Sx*(X-1)+Sy*j+Sz*k+l];
-          }
-          else phys_temp[N] = phys[N-2*Sx];
-        }
-      }
-    }
-  }
-/***************************************/
+
 
   for (i=0;i<X+1;i++) {
         for (l=0; l<3; l++) {
