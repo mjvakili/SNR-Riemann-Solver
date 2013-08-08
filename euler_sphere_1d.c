@@ -7,18 +7,18 @@
 #define PI    3.14159265
 #define G     .1
 #define GAMMA 1.4
-#define X 32
+#define X 10000
 #define XMIN 0.0
 #define XMAX 1.0
 #define THETA 2.0
-#define tmax 0.2
+#define tmax 1.0
 
 
 void Grid(double *gridX) {
   *gridX = (XMAX - XMIN) / (X - 1);
 }
 
-double sgn(double x) {  				// Gives the sign of x
+double sgn(double x) { 				// Gives the sign of x
   double S;
   if (x>0.) S = 1.;
   else S = -1.;
@@ -197,7 +197,7 @@ void Advance(double *U_new,double *U_old, double *dt) {
   double *LU     = (double*) malloc (3*(X)*sizeof (double));
   double *U1     = (double*) malloc (3*(X)*sizeof (double));
   double *U2     = (double*) malloc (3*(X)*sizeof (double));
-  double *Source = (double*) malloc (3*(X)*sizeof (double));
+//  double *Source = (double*) malloc (3*(X)*sizeof (double));
   double max1, maxX=0;
   int Sx  = 3;
   int Sxx = 3;
@@ -209,7 +209,7 @@ void Advance(double *U_new,double *U_old, double *dt) {
 
   riemansolverX(FmidX,U_old,&max1);
   if (max1> maxX) maxX=max1;
-  Fluxsource(Source, U_old, dt);
+//  Fluxsource(Source, U_old, dt);
 
   for (i=0;i<X;i++) {
     
@@ -224,7 +224,7 @@ void Advance(double *U_new,double *U_old, double *dt) {
   
   riemansolverX(FmidX,U1,&max1);
   if (max1> maxX) maxX=max1;
-  Fluxsource(Source, U1, dt);
+  //Fluxsource(Source, U1, dt);
 
   for (i=0;i<X;i++) {
     for (l=0; l<3; l++) {
@@ -238,7 +238,7 @@ void Advance(double *U_new,double *U_old, double *dt) {
   
   riemansolverX(FmidX,U2,&max1);
   if (max1> maxX) maxX=max1;
-  Fluxsource(Source, U2, dt);
+ // Fluxsource(Source, U2, dt);
 
   for (i=0;i<X;i++) {
     for (l=0; l<3; l++) {
@@ -246,7 +246,7 @@ void Advance(double *U_new,double *U_old, double *dt) {
     N1 = i*Sx;
     Nx = i*Sxx + l;
     LU[N] = - GridRatioX * (FmidX[Nx+Sxx] - FmidX[Nx]);
-    U_new[N] = (1./3.) * U_old[N] + (2./3.) * U2[N] + (2./3.) * LU[N] + Source[N];
+    U_new[N] = (1./3.) * U_old[N] + (2./3.) * U2[N] + (2./3.) * LU[N]; //+ Source[N];
     }
   }
   
@@ -259,10 +259,10 @@ void Advance(double *U_new,double *U_old, double *dt) {
   free (LU);
   free (U1);
   free (U2);
-  free (Source);
+  //free (Source);
 }
 
-void output_file2(double *U,double t){
+void output_file(double *U,double t){
 
   int i=0, N;
   double xstep;
@@ -273,43 +273,48 @@ void output_file2(double *U,double t){
   char name[160];
   double *phys = (double*) malloc (3*X*sizeof(double));
   Ucalcinv(phys, U, (X));
+  
 
-  sprintf(command, "rm density_%d_1d.dat",X);
+  sprintf(command, "rm density_%d_2d.dat",X);
   system(command);
-  sprintf(name,"density_%d_1d.dat",X);
+  sprintf(name,"density_%d_2d.dat",X);
   FILE *dens = fopen(name, "a+");
     
-  sprintf(command, "rm velocity_%d_1d.dat",X);
+  sprintf(command, "rm velocity_%d_2d.dat",X);
   system(command);
-  sprintf(name, "velocity_%d_1d.dat",X);
+  sprintf(name, "velocity_%d_2d.dat",X);
 
   FILE *vel = fopen(name,"a+");
     
-  sprintf(command, "rm pressure_%d_1d.dat",X);
+  sprintf(command, "rm pressure_%d_2d.dat",X);
   system(command);
-  sprintf(name, "pressure_%d_1d.dat",X);
+  sprintf(name, "pressure_%d_2d.dat",X);
 
   FILE *press = fopen(name,"a+");
-  
+
+    
+
+
   for (i=0; i<X; i++) {
     N = Sx*i;
     fprintf(dens , "%f\t",phys[N]);
     fprintf(vel  , "%f\t",phys[N+1]);
     fprintf(press, "%f\t",phys[N+2]);
-  }
+  }  
+  
    
   fclose(dens);
   fclose(vel);
   fclose(press);
 
-  sprintf(command, "cp density_%d_1d.dat %d/density/%f.dat",X,t);
+  sprintf(command, "cp density_%d_2d.dat %d/density/%f.dat",X,X,t);
   system(command);
-  sprintf(command, "cp velocity_%d_1d.dat %d/velocity/%f.dat",X,t);
+  sprintf(command, "cp velocity_%d_2d.dat %d/velocity/%f.dat",X,X,t);
   system(command);
-  sprintf(command, "cp pressure_%d_1d.dat %d/pressure/%f.dat",X,t);
+  sprintf(command, "cp pressure_%d_2d.dat %d/pressure/%f.dat",X,X,t);
   system(command);
-
   free (phys);
+
 }
 
 void Creat_folder(){
@@ -337,7 +342,7 @@ int main (int argc, char **argv) {
 
    
   // Initial conditions:
-  SNR(phys);
+  sphere(phys);
   Ucalc(U,phys, (X));
   printf ("tmax = %f\n",tmax);
 
@@ -352,7 +357,7 @@ int main (int argc, char **argv) {
     }
 
     if (t>0.05 * k) {
-      output_file2(U, t);
+      output_file(U, t);
       k++;
     }
     printf ("%d| t = %f\n",l,t);
