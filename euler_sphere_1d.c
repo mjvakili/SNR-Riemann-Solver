@@ -37,10 +37,17 @@ double minmod(double x, double y, double z) {		// The minmod function, described
 // Given the density, speed and pressure, we calculate the flux F:
 void FluxCalcPX(double *FX, double *phys, int N) {
   int i=0;
+  int i=0;
+  double   dx;
+  Grid (&dx);
+  double x;
   for (i=0;i<N;i++) {
-      FX[3*i+0] = phys[3*i+0] * phys[3*i+1];
-      FX[3*i+1] = phys[3*i+0] * phys[3*i+1] * phys[3*i+1] + phys[3*i+2];
-      FX[3*i+2] = phys[3*i+1] *(phys[3*i+0] *(phys[3*i+1] * phys[3*i+1]) * .5 + phys[3*i+2] * GAMMA / (GAMMA - 1));
+      x = XMIN + dx * i;
+      s = 4*PI*(x*x);
+  for (i=0;i<N;i++) {
+      FX[3*i+0] = s*phys[3*i+0] * phys[3*i+1];
+      FX[3*i+1] = s*(phys[3*i+0] * phys[3*i+1] * phys[3*i+1] + phys[3*i+2]);
+      FX[3*i+2] = s*(phys[3*i+1] *(phys[3*i+0] *(phys[3*i+1] * phys[3*i+1]) * .5 + phys[3*i+2] * GAMMA / (GAMMA - 1)));
 
   }
 }
