@@ -201,12 +201,16 @@ void Advance(double *U_new,double *U_old, double *dt) {
 //  Fluxsource(Source, U_old, dt);
 
   for (i=0;i<X;i++) {
-    
+    double   dx;
+    Grid (&dx);
+    double x;
+    x = XMIN + dx * i;
+    V = 4*PI*(x*x*dx);  
     for (l=0; l<3; l++) {
       N  = i*Sx + l;
       N1 = i*Sx;
       Nx = i*Sxx + l;
-      LU[N] = - GridRatioX * (FmidX[Nx+Sxx] - FmidX[Nx]);
+      LU[N] = - GridRatioX * (FmidX[Nx+Sxx] - FmidX[Nx])/V;
       U1[N] = U_old[N] + LU[N];
     }
   }
@@ -216,11 +220,16 @@ void Advance(double *U_new,double *U_old, double *dt) {
   //Fluxsource(Source, U1, dt);
 
   for (i=0;i<X;i++) {
+    double   dx;
+    Grid (&dx);
+    double x;
+    x = XMIN + dx * i;
+    V = 4*PI*(x*x*dx);  
     for (l=0; l<3; l++) {
     N  = i*Sx +  l;
     N1 = i*Sx ;
     Nx = i*Sxx + l;
-    LU[N] = - GridRatioX * (FmidX[Nx+Sxx] - FmidX[Nx]);
+    LU[N] = - GridRatioX * (FmidX[Nx+Sxx] - FmidX[Nx])/V;
     U2[N] = 0.75 * U_old[N] + 0.25 * U1[N] + 0.25 * LU[N];
     }
   }
@@ -230,11 +239,16 @@ void Advance(double *U_new,double *U_old, double *dt) {
  // Fluxsource(Source, U2, dt);
 
   for (i=0;i<X;i++) {
+    double   dx;
+    Grid (&dx);
+    double x;
+    x = XMIN + dx * i;
+    V = 4*PI*(x*x*dx);  
     for (l=0; l<3; l++) {
     N  = i*Sx + l;
     N1 = i*Sx;
     Nx = i*Sxx + l;
-    LU[N] = - GridRatioX * (FmidX[Nx+Sxx] - FmidX[Nx]);
+    LU[N] = - GridRatioX * (FmidX[Nx+Sxx] - FmidX[Nx])/V;
     U_new[N] = (1./3.) * U_old[N] + (2./3.) * U2[N] + (2./3.) * LU[N]; //+ Source[N];
     }
   }
