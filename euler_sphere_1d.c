@@ -7,18 +7,18 @@
 #define PI    3.14159265
 #define G     .1
 #define GAMMA 1.4
-#define X 10000
+#define X 100
 #define XMIN 0.0
-#define XMAX 100.0
+#define XMAX 10.0
 #define THETA 2.0
-#define tmax 1.0
+#define tmax 0.2
 #define R 0.1
 
 void Grid(double *gridX) {
   *gridX = (XMAX - XMIN) / (X - 1);
 }
 
-double sgn(double x) { 				// Gives the sign of x
+double sgn(double x) {					// Gives the sign of x
   double S;
   if (x>0.) S = 1.;
   else S = -1.;
@@ -37,15 +37,14 @@ double minmod(double x, double y, double z) {		// The minmod function, described
 // Given the density, speed and pressure, we calculate the flux F:
 void FluxCalcPX(double *FX, double *phys, int N) {
   int i=0;
-  int i=0;
   double   dx;
   Grid (&dx);
   double x;
+  double s;
   for (i=0;i<N;i++) {
       x = XMIN + dx * i;
       s = 4*PI*(x*x);
-  for (i=0;i<N;i++) {
-      FX[3*i+0] = s*phys[3*i+0] * phys[3*i+1];
+      FX[3*i+0] = s*(phys[3*i+0] * phys[3*i+1]);
       FX[3*i+1] = s*(phys[3*i+0] * phys[3*i+1] * phys[3*i+1] + phys[3*i+2]);
       FX[3*i+2] = s*(phys[3*i+1] *(phys[3*i+0] *(phys[3*i+1] * phys[3*i+1]) * .5 + phys[3*i+2] * GAMMA / (GAMMA - 1)));
 
@@ -118,7 +117,7 @@ void riemansolverX(double *F_mid, double *U, double *max) {
 
   *max=0;
 
-/**********reflective in r=0 and outflow in rmax **************/
+/**********reflective in r=0 and outflow in rmax ***************/
   for (i=0;i<X+4;i++) {
     for (l=0;l<3;l++) {
       N = Sx*i+l;
@@ -127,12 +126,12 @@ void riemansolverX(double *F_mid, double *U, double *max) {
         else          phys_temp[N] = phys[Sx*(0)+l];
       }
       else if (i==1){ 
- if (l==1) phys_temp[N] = -phys[Sx*(0)+l]
+	if (l==1) phys_temp[N] = -phys[Sx*(0)+l];
 	else      phys_temp[N] = phys[Sx*(0)+l];
 
       }
       else if (i>X+1) {
-        phys_temp[N] = phys[Sx*(X-1)+l];;
+        phys_temp[N] = phys[Sx*(X-1)+l];
       }
       else phys_temp[N] = phys[N-2*Sx];
     }
@@ -212,6 +211,7 @@ void Advance(double *U_new,double *U_old, double *dt) {
     Grid (&dx);
     double x;
     x = XMIN + dx * i;
+    double V;
     V = 4*PI*(x*x*dx);  
     for (l=0; l<3; l++) {
       N  = i*Sx + l;
@@ -231,6 +231,7 @@ void Advance(double *U_new,double *U_old, double *dt) {
     Grid (&dx);
     double x;
     x = XMIN + dx * i;
+    double V;
     V = 4*PI*(x*x*dx);  
     for (l=0; l<3; l++) {
     N  = i*Sx +  l;
@@ -250,6 +251,7 @@ void Advance(double *U_new,double *U_old, double *dt) {
     Grid (&dx);
     double x;
     x = XMIN + dx * i;
+    double V;
     V = 4*PI*(x*x*dx);  
     for (l=0; l<3; l++) {
     N  = i*Sx + l;
@@ -344,7 +346,7 @@ int main (int argc, char **argv) {
   double *phys = (double*) malloc(3*X*sizeof(double));
   double *U    = (double*) malloc(3*X*sizeof(double));
   double *U_adv = (double*) malloc(3*X*sizeof(double));
-  double dt=0.00001;
+  double dt=0.0001;
   double t=0;
   int i, k=0, l=0;
 
