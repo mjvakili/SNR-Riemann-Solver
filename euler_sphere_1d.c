@@ -7,13 +7,13 @@
 #define PI    3.14159265
 #define G     .1
 #define GAMMA 1.4
-#define X 10
+#define X 101
 #define XMIN 0.0
 #define XMAX 1.0
 #define THETA 2.0
 ///#define tmax 0.1
 #define R 0.5
-
+#define Rc 0.05
 void Grid(double *gridX) {
   *gridX = (XMAX - XMIN) / (X - 1);
 }
@@ -76,7 +76,7 @@ void Ucalcinv(double *physicalvar, double *U, int N) {     // physicalvar[] = rh
 
 ///SNR initial condition
 
-void sphere(double *physical) {
+void constant(double *physical) {
   int i=0, N;
   double   dx;
   Grid (&dx);
@@ -99,6 +99,28 @@ void sphere(double *physical) {
   }
 }
 
+void sphere(double *physical) {
+  int i=0, N;
+  double   dx;
+  Grid (&dx);
+  double x;
+
+  for (i=0;i<X;i++) {
+    
+    x = XMIN + dx * i;
+    N = 3 * i;
+    if (x<Rc) {
+      physical[N+0] = 1.0;
+      physical[N+1] = 0.0;
+      physical[N+2] = 1.0;
+    }
+    else {
+      physical[N+0] = (Rc*Rc)/(x*x);
+      physical[N+1] = 0.0;
+      physical[N+2] = 0.125;
+    }
+  }
+}
 
 double MAX2 (double a, double b){
   double z;
@@ -144,24 +166,30 @@ void riemansolverX(double *F_mid, double *U, double *max) {
   int Sx =3;
 
 
-/***********************periodic**************************** /                                    
-  int Sx =3;
+/**********reflective at r=0 and outflow at rmax **** /                                    
   for (i=0;i<X+4;i++) {
     for (l=0;l<3;l++) {
-            N = Sx*i+l;
-            if      (i<2) {
-              phys_temp[N] = phys[Sx*(i+X-2)+l];      // phys[N+Sz*(Z-2)];
-            }
-            else if (i>X+1) {
-              phys_temp[N] = phys[Sx*(i-X+2)+l];      // phys[N-Sz*(Z+2)];
-            }
-            else phys_temp[N] = phys[Sx*(i-2)+l];     // phys[N-Sz*2];
+      N = Sx*i+l;
+      if      (i==0) {
+        if    (l==1)  phys_temp[N] = -phys[Sx*(1)+l];
+        else          phys_temp[N] = phys[Sx*(0)+l];
+      }
+      else if (i==1) {
+        if    (l==1)  phys_temp[N] = -phys[Sx*(0)+l];
+        else          phys_temp[N] = phys[Sx*(0)+l];
+      }
+      else if (i==X+2) {
+        if    (l==1)  phys_temp[N] = phys[Sx*(X-1)+l];
+        else          phys_temp[N] = phys[Sx*(X-1)+l];
+      }
+      else if (i==X+3) {
+        if    (l==1) phys_temp[N] = phys[Sx*(X-2)+l];
+        else         phys_temp[N] = phys[Sx*(X-1)+l];
+      }
+      else            phys_temp[N] = phys[Sx*(i-2)+l];
     }
   }
-     
-  int Sx =3;
-
-/**********reflective in r=0 and outflow in rmax ***************/ 
+/**********reflective on both sides ***************/ 
   for (i=0;i<X+4;i++) {
     for (l=0;l<3;l++) {
       N = Sx*i+l;
@@ -458,14 +486,14 @@ int main (int argc, char **argv) {
   sphere(phys);
   Ucalc(U,phys,(X));
   double p;
-  riemansolverX(Fmid, U, &p);
-  for (i=0;i<X+1;i++) {
-    int N;
-    N = 3*i;
-    printf ("flux = %f\n",Fmid[N]);
-  }
+  //riemansolverX(Fmid, U, &p);
+  //for (i=0;i<X+1;i++) {
+    //int N;
+    //N = 3*i;
+    //printf ("flux = %f\n",Fmid[N]);
+  //}
 
-  //printf ("tmax = %f\n",tmax);
+  printf ("tmax = %f\n",tmax);
   
   while (t<tmax) {
     output_file1(U, t, j);
@@ -480,7 +508,7 @@ int main (int argc, char **argv) {
       system (command);
     k++;
     }
-    //printf ("%d| t = %f\n",k,t);
+    printf ("%d| t = %f\n",k,t);
     output_file(U,t);
   }
  
@@ -491,3 +519,4 @@ int main (int argc, char **argv) {
 
   return 0;
 }
+
