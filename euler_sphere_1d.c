@@ -11,9 +11,9 @@
 #define XMIN 0.0
 #define XMAX 1.0
 #define THETA 2.0
-///#define tmax 0.1
 #define R 0.5
 #define Rc 0.05
+
 void Grid(double *gridX) {
   *gridX = (XMAX - XMIN) / (X - 1);
 }
@@ -112,7 +112,7 @@ void sphere(double *physical) {
     if (x<Rc) {
       physical[N+0] = 1.0;
       physical[N+1] = 0.0;
-      physical[N+2] = 1.0;
+      physical[N+2] = 10.0;
     }
     else {
       physical[N+0] = (Rc*Rc)/(x*x);
