@@ -8,17 +8,17 @@
 #define G     .1
 #define GAMMA 1.4
 #define X 1001
-#define XMIN 0.1
-#define XMAX 1.1
+#define XMIN 1.0
+#define XMAX 2.0
 #define THETA 2.0
 ///#define tmax 0.1
-#define R 0.5
+#define R 1.5
 #define Rc 0.05
 void Grid(double *gridX) {
   *gridX = (XMAX - XMIN) / (X - 1);
 }
 
- void Gridd(double *gridX) {
+void Gridd(double *gridX) {
   *gridX = 1.0;
 }
 
@@ -38,15 +38,31 @@ double minmod(double x, double y, double z) {		// The minmod function, described
   return M;
 }
 
-// Given the density, speed and pressure, we calculate the flux F:
-void FluxCalcPX(double *FX, double *phys, int N) {
+
+void CellSurface(double *SX , int N) {
   int i=0;
   for (i=0;i<N;i++) {
-      FX[3*i+0] = phys[3*i+0] * phys[3*i+1];
-      FX[3*i+1] = phys[3*i+0] * phys[3*i+1] * phys[3*i+1] + phys[3*i+2];
-      FX[3*i+2] = phys[3*i+1] *(phys[3*i+0] *phys[3*i+1] * phys[3*i+1] * .5 + phys[3*i+2]*GAMMA / (GAMMA - 1));
+    double dx;
+    Grid(&dx);
+    double x;
+    x = XMIN +dx*i;
+    SX[i]=4*PI*x*x;
+  }
+}
+
+// Given the density, speed and pressure, we calculate the flux F:
+void FluxCalcPX(double *FX, double *phys, int N) {
+  double *SX   = (double*) malloc ((N)*sizeof (double)); 
+  int i=0;
+  CellSurface(SX , N);
+  for (i=0;i<N;i++) {
+
+      FX[3*i+0] = SX[i]*(phys[3*i+0] * phys[3*i+1]);
+      FX[3*i+1] = SX[i]*(phys[3*i+0] * phys[3*i+1] * phys[3*i+1] + phys[3*i+2]);
+      FX[3*i+2] = SX[i]*(phys[3*i+1] *(phys[3*i+0] *phys[3*i+1] * phys[3*i+1] * .5 + phys[3*i+2]*GAMMA / (GAMMA - 1)));
 
   }
+  free(SX);
 }
 
 // Given the density, speed and pressure, we calculate the conserved variable U:
@@ -69,19 +85,7 @@ void Ucalcinv(double *physicalvar, double *U, int N) {     // physicalvar[] = rh
   }
 }
 
-// Surfaces
-
-
-void CellSurface(double *SX) {
-  int i=0;
-  for (i=0;i<X;i++) {
-    double dx;
-    Grid(&dx);
-    double x;
-    x = XMIN +dx*i;
-    SX[i]=4*PI*x*x;
-  }
-}
+// Cell Volumes
 
 
 void CellVolume(double *VX){
@@ -92,7 +96,7 @@ void CellVolume(double *VX){
    Grid(&dx);
    double x;
    x = XMIN + dx*(i+1);
-   VX[i] = 4*PI*x*x*dx;
+   VX[i] = 4*PI*((x*x*x)-((x-dx)*(x-dx)*(x-dx)))/3.0;
  }
 }
 
@@ -171,7 +175,7 @@ double MAX3 (double a, double b, double c){
 
 
 // Calculates the flux at a half integer coordinate using the riemann method.
-void riemansolverX(double *F_mid, double *U, double *S_mid, double *max) {
+void riemansolverX(double *F_mid, double *U, double *max) {
   double *phys  = (double*) malloc (3*(X)*sizeof (double));
   double *phys_temp= (double*) malloc (3*(X+4)*sizeof (double));
   double *physL = (double*) malloc (3*(X+1)*sizeof (double));
@@ -180,10 +184,6 @@ void riemansolverX(double *F_mid, double *U, double *S_mid, double *max) {
   double *FRX   = (double*) malloc (3*(X+1)*sizeof (double));
   double *UL    = (double*) malloc (3*(X+1)*sizeof (double));
   double *UR    = (double*) malloc (3*(X+1)*sizeof (double));
-  double *SX    = (double*) malloc ((X)*sizeof (double));
-  double *SLX   = (double*) malloc ((X+1)*sizeof (double));
-  double *SRX   = (double*) malloc ((X+1)*sizeof (double));
-  double *S_temp = (double*) malloc ((X+4)*sizeof (double));
   double SoundSpeedL, SoundSpeedR;											//
 //L, SoundSpeedR, SoundSpeedLL, SoundSpeedRR;
   double AlphaPlus=0., AlphaMinus=0.;
@@ -242,37 +242,6 @@ void riemansolverX(double *F_mid, double *U, double *S_mid, double *max) {
   }
  
 /************************************/
-  for (i=0;i<X+4;i++) {
-    double dx;
-    Grid(&dx);
-    double x;
-    x = XMIN + dx*i;
-    
-  
-    if (i==0){
-      S_temp[i] = 0;
-    }
-    else if (i==1){
-      S_temp[i] = 0;
-    }
-    else if (i==X+2){
-      S_temp[i] = 4*PI*x*x;
-    }
-    else if (i==X+3){
-      S_temp[i] = 4*PI*x*x;
-    }
-    else{
-      S_temp[i] = SX[i-2];
-    }
-  }
-
-  for (i=0;i<X+1;i++) {
-	
-      SLX[i] = S_temp[i+1] + 0.5 * minmod (THETA*(S_temp[i+1] - S_temp[i]), 0.5*(S_temp[i+2] -S_temp[i]), THETA*(S_temp[i+2] - S_temp[i+1]));
-      SRX[i] = S_temp[i+2] - 0.5 * minmod (THETA*(S_temp[i+2] - S_temp[i+1]), 0.5*(S_temp[i+3] - S_temp[i+1]), THETA*(S_temp[i+3] - S_temp[i+2]));
-  }
-      
-  
 
   for (i=0;i<X+1;i++) {
     for (l=0; l<3; l++) {
@@ -286,7 +255,9 @@ void riemansolverX(double *F_mid, double *U, double *S_mid, double *max) {
   
 
   FluxCalcPX (FLX, physL, (X+1));
+ 
   FluxCalcPX (FRX, physR, (X+1));
+  
   Ucalc (UL, physL, (X+1));
   Ucalc (UR, physR, (X+1));
 
@@ -298,7 +269,6 @@ void riemansolverX(double *F_mid, double *U, double *S_mid, double *max) {
     SoundSpeedR = sqrt (GAMMA * physR[N+2] / physR[N+0]);
     AlphaMinus = MAX3(-physL[N+1] + SoundSpeedL , -physR[N+1] + SoundSpeedR , 0);
     AlphaPlus = MAX3(physR[N+1] + SoundSpeedR , physL[N+1] + SoundSpeedL , 0);
-    S_mid[i] = (AlphaPlus*SLX[i]+AlphaMinus*SRX[i]-AlphaMinus*AlphaPlus*(UR[N]-UL[N]))/(AlphaPlus+AlphaMinus);
 
     for (l=0; l<3; l++) {
       N = Sx*i+l;
@@ -316,63 +286,27 @@ void riemansolverX(double *F_mid, double *U, double *S_mid, double *max) {
   free (FRX);
   free (UL);
   free (UR);
-  free (S_mid);
-  free (SX);
-  free (SLX);   
-  free (SRX);   
-  free (S_temp); 
 }
-
-
-
 
 void Fluxsource (double *Source, double *U, double *dt) {
   
   
-  double *S_mid= (double*) malloc ((X+1)*sizeof (double));
+  //double *S_mid= (double*) malloc ((X+1)*sizeof (double));
   double *phys = (double*) malloc (3*(X)*sizeof(double));
   double *VX   = (double*) malloc ((X)*sizeof (double));
-  double *UL    = (double*) malloc (3*(X+1)*sizeof (double));
-  double *UR    = (double*) malloc (3*(X+1)*sizeof (double));
+  //double *UL    = (double*) malloc (3*(X+1)*sizeof (double));
+  //double *UR    = (double*) malloc (3*(X+1)*sizeof (double));
   double *SX    = (double*) malloc ((X)*sizeof (double));
-  double *SLX   = (double*) malloc ((X+1)*sizeof (double));
-  double *SRX   = (double*) malloc ((X+1)*sizeof (double));
+  //double *SLX   = (double*) malloc ((X+1)*sizeof (double));
+  //double *SRX   = (double*) malloc ((X+1)*sizeof (double));
   double *S_temp = (double*) malloc ((X+4)*sizeof (double));
-  double *phys_temp= (double*) malloc (3*(X+4)*sizeof (double));
-  double *physL = (double*) malloc (3*(X+1)*sizeof (double));
-  double *physR = (double*) malloc (3*(X+1)*sizeof (double));
-  double SoundSpeedL, SoundSpeedR;
-  double AlphaPlus=0., AlphaMinus=0.;
   int i, l, N;  
   int Sx =3; 							
   
 
   Ucalcinv(phys, U, (X));
   CellVolume(VX);
-  CellSurface(SX);
-  for (i=0;i<X+4;i++) {
-    for (l=0;l<3;l++) {
-      N = Sx*i+l;
-      if      (i==0) {
-        if    (l==1)  phys_temp[N] = -phys[Sx*(1)+l];
-        else          phys_temp[N] = phys[Sx*(0)+l];
-      }
-      else if (i==1) {
-        if    (l==1)  phys_temp[N] = -phys[Sx*(0)+l];
-        else          phys_temp[N] = phys[Sx*(0)+l];
-      }
-      else if (i==X+2) {
-        if    (l==1)  phys_temp[N] = -phys[Sx*(X-1)+l];
-        else          phys_temp[N] = phys[Sx*(X-1)+l];
-      }
-      else if (i==X+3) {
-        if    (l==1) phys_temp[N] = -phys[Sx*(X-2)+l];
-        else         phys_temp[N] = phys[Sx*(X-1)+l];
-      }
-      else            phys_temp[N] = phys[Sx*(i-2)+l];
-    }
-  }
- 
+  CellSurface(SX,X);
 /************************************/
   for (i=0;i<X+4;i++) {
     double dx;
@@ -397,63 +331,43 @@ void Fluxsource (double *Source, double *U, double *dt) {
       S_temp[i] = SX[i-2];
     }
   }
-
+/*****
   for (i=0;i<X+1;i++) {
 	
       SLX[i] = S_temp[i+1] + 0.5 * minmod (THETA*(S_temp[i+1] - S_temp[i]), 0.5*(S_temp[i+2] -S_temp[i]), THETA*(S_temp[i+2] - S_temp[i+1]));
       SRX[i] = S_temp[i+2] - 0.5 * minmod (THETA*(S_temp[i+2] - S_temp[i+1]), 0.5*(S_temp[i+3] - S_temp[i+1]), THETA*(S_temp[i+3] - S_temp[i+2]));
   }
-      
-  
 
-  for (i=0;i<X+1;i++) {
-    for (l=0; l<3; l++) {
-      N = Sx*i+l;
-	
-      physL[N] = phys_temp[N+Sx] + 0.5 * minmod (THETA*(phys_temp[N+Sx] - phys_temp[N]), 0.5*(phys_temp[N+2*Sx] -phys_temp[N]), THETA*(phys_temp[N+2*Sx] - phys_temp[N+Sx]));
-      physR[N] = phys_temp[N+2*Sx] - 0.5 * minmod (THETA*(phys_temp[N+2*Sx] - phys_temp[N+Sx]), 0.5*(phys_temp[N+3*Sx] - phys_temp[N+Sx]), THETA*(phys_temp[N+3*Sx] - phys_temp[N+2*Sx]));
-    }
-      
-  }
-   
-  
-  for (i=0;i<X+1;i++) {
-    N = Sx*i;
-    AlphaPlus=0.;
-    AlphaMinus=0.;
-    SoundSpeedL = sqrt (GAMMA * physL[N+2] / physL[N+0]);
-    SoundSpeedR = sqrt (GAMMA * physR[N+2] / physR[N+0]);
-    AlphaMinus = MAX3(-physL[N+1] + SoundSpeedL , -physR[N+1] + SoundSpeedR , 0);
-    AlphaPlus = MAX3(physR[N+1] + SoundSpeedR , physL[N+1] + SoundSpeedL , 0);
-    S_mid[i] = (AlphaPlus*SLX[i]+AlphaMinus*SRX[i]-AlphaMinus*AlphaPlus*(UR[N]-UL[N]))/(AlphaPlus+AlphaMinus);
-
-  }
-  
+******/  
   double  GridRatioX;
   Gridd(&GridRatioX);
   GridRatioX = *dt/GridRatioX;
 
 
   for (i=0;i<X;i++) {
+        double dx;
+        Grid(&dx);
+        double x;
+        x = XMIN + dx*(i+0.5);
 	int Nf;
         Nf = 3*i;
         Source[Nf+0] = 0.0;
-        Source[Nf+1] = phys[Nf+2]*(S_mid[i+1]-S_mid[i])*GridRatioX/VX[i];
+        Source[Nf+1] = 2.*phys[Nf+2]*GridRatioX/x;
         Source[Nf+2] = 0.0; 
   }
 
-  free (phys);
-  free (physL);
-  free (physR);
-  free (phys_temp);
-  free (S_mid);
+  //free (phys);
+  //free (physL);
+  //free (physR);
+  //free (phys_temp);
+  //free (S_mid);
   free (phys);
   free (VX);
-  free (UL);
-  free (UR);
+  //free (UL);
+  //free (UR);
   free (SX);
-  free (SLX);   
-  free (SRX);   
+  //free (SLX);   
+  //free (SRX);   
   free (S_temp); 
   
 }
@@ -465,7 +379,6 @@ void Advance(double *U_new,double *U_old, double *dt) {
   double *phys   = (double*) malloc (3*(X)*sizeof (double));
   double *VX   = (double*) malloc ((X)*sizeof (double));
   double *FmidX  = (double*) malloc (3*(X+1)*sizeof (double));
-  double *Smid  = (double*) malloc ((X+1)*sizeof (double));
   double *LU     = (double*) malloc (3*(X)*sizeof (double));
   double *U1     = (double*) malloc (3*(X)*sizeof (double));
   double *U2     = (double*) malloc (3*(X)*sizeof (double));
@@ -478,41 +391,41 @@ void Advance(double *U_new,double *U_old, double *dt) {
   GridRatioX = *dt/GridRatioX;
   CellVolume(VX);
 
-  riemansolverX(FmidX,U_old,Smid,&max1);
+  riemansolverX(FmidX,U_old,&max1);
   if (max1> maxX) maxX=max1;
   Fluxsource(Source, U_old, dt);
 
   for (i=0;i<X;i++) {
     for (l=0; l<3; l++) {
       N  = i*Sx + l;
-      LU[N] = - GridRatioX * (FmidX[N+Sx]*Smid[i+1] - FmidX[N]*Smid[i])/VX[i];
+      LU[N] = - GridRatioX * (FmidX[N+Sx] - FmidX[N])/VX[i];
       U1[N] = U_old[N] + LU[N];
     }
    
   
   }
   
-  riemansolverX(FmidX,U1,Smid,&max1);
+  riemansolverX(FmidX,U1,&max1);
   if (max1> maxX) maxX=max1;
   Fluxsource(Source, U1, dt);
 
   for (i=0;i<X;i++) { 
     for (l=0; l<3; l++) {
       N  = i*Sx +  l;
-      LU[N] = -1.* GridRatioX * (FmidX[N+Sx]*Smid[i+1] - FmidX[N]*Smid[i])/VX[i];
+      LU[N] = -1.* GridRatioX * (FmidX[N+Sx] - FmidX[N])/VX[i];
       U2[N] = 0.75 * U_old[N] + 0.25 * U1[N] + 0.25 * LU[N];
     }
   }
   
-  riemansolverX(FmidX,U2,Smid,&max1);
+  riemansolverX(FmidX,U2,&max1);
   if (max1> maxX) maxX=max1;
   Fluxsource(Source, U2, dt);
 
   for (i=0;i<X;i++) {  
     for (l=0; l<3; l++) {
       N  = i*Sx + l;
-      LU[N] = -1.* GridRatioX * (FmidX[N+Sx]*Smid[i+1] - FmidX[N]*Smid[i])/VX[i];
-      U_new[N] = (1./3.) * U_old[N] + (2./3.) * U2[N] + (2./3.) * LU[N] + Source[N];
+      LU[N] = -1.* GridRatioX * (FmidX[N+Sx] - FmidX[N])/VX[i];
+      U_new[N] = (1./3.) * U_old[N] + (2./3.) * U2[N] + (2./3.) * LU[N]+ Source[N];
     }
   }
   double dx;
@@ -525,6 +438,7 @@ void Advance(double *U_new,double *U_old, double *dt) {
   free (LU);
   free (U1);
   free (U2);
+  free (VX);
   free (Source);
 }
 
@@ -623,16 +537,16 @@ int main (int argc, char **argv) {
   double *U    = (double*) malloc(3*X*sizeof(double));
   double *U_adv = (double*) malloc(3*X*sizeof(double));
   double *Fmid = (double*) malloc(3*(X+1)*sizeof(double));
-  double dt=0.00001, dx;
+  double dt=0.000001, dx;
   char command[40];
-  double t=0, tmax=0.1;
+  double t=0, tmax=0.01;
   int i,j=0,k=0;
 
   Creat_folder();//Creat folder to store data;
 
    
   // Initial conditions:
-  sphere(phys);
+  constant(phys);
   Ucalc(U,phys,(X));
   double p;
   //riemansolverX(Fmid, U, &p);
