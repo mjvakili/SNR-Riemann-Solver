@@ -18,6 +18,10 @@ void Grid(double *gridX) {
   *gridX = (XMAX - XMIN) / (X - 1);
 }
 
+ void Gridd(double *gridX) {
+  *gridX = 1.0;
+}
+
 double sgn(double x) {					// Gives the sign of x
   double S;
   if (x>0.) S = 1.;
@@ -425,13 +429,16 @@ void Fluxsource (double *Source, double *U, double *dt) {
 
   }
   
+  double  GridRatioX;
+  Gridd(&GridRatioX);
+  GridRatioX = *dt/GridRatioX;
 
 
   for (i=0;i<X;i++) {
 	int Nf;
         Nf = 3*i;
         Source[Nf+0] = 0.0;
-        Source[Nf+1] = phys[Nf+2]*(S_mid[i+1]-S_mid[i])*dt/VX[i];
+        Source[Nf+1] = phys[Nf+2]*(S_mid[i+1]-S_mid[i])*GridRatioX/VX[i];
         Source[Nf+2] = 0.0; 
   }
 
@@ -458,6 +465,7 @@ void Advance(double *U_new,double *U_old, double *dt) {
   double *phys   = (double*) malloc (3*(X)*sizeof (double));
   double *VX   = (double*) malloc ((X)*sizeof (double));
   double *FmidX  = (double*) malloc (3*(X+1)*sizeof (double));
+  double *Smid  = (double*) malloc ((X+1)*sizeof (double));
   double *LU     = (double*) malloc (3*(X)*sizeof (double));
   double *U1     = (double*) malloc (3*(X)*sizeof (double));
   double *U2     = (double*) malloc (3*(X)*sizeof (double));
@@ -465,19 +473,19 @@ void Advance(double *U_new,double *U_old, double *dt) {
   double max1, maxX=0;
   int Sx  = 3;
   
-  //double  GridRatioX;
-  //Grid(&GridRatioX);
-  //GridRatioX = *dt/GridRatioX;
+  double  GridRatioX;
+  Gridd(&GridRatioX);
+  GridRatioX = *dt/GridRatioX;
   CellVolume(VX);
 
   riemansolverX(FmidX,U_old,Smid,&max1);
   if (max1> maxX) maxX=max1;
-  Fluxsource(U_old, dt);
+  Fluxsource(Source, U_old, dt);
 
   for (i=0;i<X;i++) {
     for (l=0; l<3; l++) {
       N  = i*Sx + l;
-      LU[N] = - dt * (FmidX[N+Sx]*Smid[i+1] - FmidX[N]*Smid[i])/VX[i];
+      LU[N] = - GridRatioX * (FmidX[N+Sx]*Smid[i+1] - FmidX[N]*Smid[i])/VX[i];
       U1[N] = U_old[N] + LU[N];
     }
    
@@ -486,30 +494,30 @@ void Advance(double *U_new,double *U_old, double *dt) {
   
   riemansolverX(FmidX,U1,Smid,&max1);
   if (max1> maxX) maxX=max1;
-  Fluxsource(U1, dt);
+  Fluxsource(Source, U1, dt);
 
   for (i=0;i<X;i++) { 
     for (l=0; l<3; l++) {
       N  = i*Sx +  l;
-      LU[N] = -1.* dt * (FmidX[N+Sx]*Smid[i+1] - FmidX[N]*Smid[i])/VX[i];
+      LU[N] = -1.* GridRatioX * (FmidX[N+Sx]*Smid[i+1] - FmidX[N]*Smid[i])/VX[i];
       U2[N] = 0.75 * U_old[N] + 0.25 * U1[N] + 0.25 * LU[N];
     }
   }
   
   riemansolverX(FmidX,U2,Smid,&max1);
   if (max1> maxX) maxX=max1;
-  Fluxsource(U2, dt);
+  Fluxsource(Source, U2, dt);
 
   for (i=0;i<X;i++) {  
     for (l=0; l<3; l++) {
       N  = i*Sx + l;
-      LU[N] = -1.* dt * (FmidX[N+Sx]*Smid[i+1] - FmidX[N]*Smid[i])/VX[i];
+      LU[N] = -1.* GridRatioX * (FmidX[N+Sx]*Smid[i+1] - FmidX[N]*Smid[i])/VX[i];
       U_new[N] = (1./3.) * U_old[N] + (2./3.) * U2[N] + (2./3.) * LU[N] + Source[N];
     }
   }
-  double GridRatioX;
-  Grid(&GridRatioX);
-  double dtX = 0.7 * GridRatioX / maxX;
+  double dx;
+  Grid(&dx);
+  double dtX = 0.7 * dx / maxX;
   *dt=dtX;
 
   free (phys);
@@ -660,4 +668,3 @@ int main (int argc, char **argv) {
 
   return 0;
 }
-
